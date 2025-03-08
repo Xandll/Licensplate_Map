@@ -1,0 +1,1280 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>License Plate Explorer - Street View Countries</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Roboto', sans-serif;
+        }
+
+        body {
+            background-color: #f8f9fa;
+        }
+
+        #map {
+            height: 100vh;
+            width: 100%;
+        }
+
+        .title-container {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            background-color: white;
+            padding: 8px 16px;
+            border-radius: 4px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+        }
+
+        .title-container h1 {
+            font-size: 16px;
+            color: #5f6368;
+            font-weight: 500;
+        }
+
+        .leaflet-popup-content-wrapper {
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            padding: 0;
+        }
+
+        .leaflet-popup-content {
+            margin: 0;
+            width: auto !important;
+            max-width: 600px;
+        }
+
+        .popup-container {
+            padding: 16px;
+        }
+
+        .country-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #e8eaed;
+        }
+
+        .country-flag {
+            font-size: 24px;
+            margin-right: 12px;
+        }
+
+        .country-name {
+            font-size: 18px;
+            font-weight: 500;
+            color: #202124;
+        }
+
+        .license-plates-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: flex-start;
+            /* oder center, je nach Wunsch */
+            max-height: 500px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+
+        .license-plate-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 220px;
+            /* Etwas breiter für größere Bilder */
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+            background-color: #fff;
+            padding: 10px;
+        }
+
+        .license-plate {
+            margin-bottom: 5px;
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .license-plate img {
+            width: 100%;
+            max-width: 200px;
+            /* Angespasste Größe für etwas größere Bilder */
+            height: auto;
+            display: block;
+        }
+
+        .license-plate h4 {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .plate-type {
+            text-align: center;
+            font-size: 14px;
+            font-style: italic;
+            color: #5f6368;
+            padding: 6px 10px;
+            background-color: #f1f3f4;
+            border-radius: 5px;
+        }
+
+        .leaflet-control-zoom {
+            border-radius: 4px;
+            overflow: hidden;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+        }
+
+        .leaflet-control-zoom a {
+            background-color: white;
+            color: #5f6368;
+        }
+
+        .leaflet-control-zoom a:hover {
+            background-color: #f1f3f4;
+        }
+
+        /* Google Maps style marker */
+        .google-marker {
+            width: 30px;
+            height: 30px;
+            border-radius: 50% 50% 50% 0;
+            background: #4285F4;
+            position: absolute;
+            transform: rotate(-45deg);
+            left: 50%;
+            top: 50%;
+            margin: -15px 0 0 -15px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        .google-marker:after {
+            content: '';
+            width: 14px;
+            height: 14px;
+            margin: 8px 0 0 8px;
+            background: white;
+            position: absolute;
+            border-radius: 50%;
+        }
+
+        /* Loading indicator */
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #5f6368;
+            font-size: 14px;
+        }
+
+        /* Scrollbar styling */
+        .license-plates-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .license-plates-container::-webkit-scrollbar-track {
+            background: #f1f3f4;
+            border-radius: 4px;
+        }
+
+        .license-plates-container::-webkit-scrollbar-thumb {
+            background: #dadce0;
+            border-radius: 4px;
+        }
+
+        .license-plates-container::-webkit-scrollbar-thumb:hover {
+            background: #bdc1c6;
+        }
+
+        /* Region filter */
+        .region-filter {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+            background-color: white;
+            padding: 8px;
+            border-radius: 4px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+        }
+
+        .region-filter select {
+            padding: 6px 12px;
+            border: 1px solid #dadce0;
+            border-radius: 4px;
+            font-size: 14px;
+            color: #5f6368;
+            outline: none;
+        }
+    </style>
+</head>
+
+
+<body>
+    <div class="title-container">
+        <h1>License Plate Explorer - Street View Countries</h1>
+    </div>
+    <div class="region-filter">
+        <select id="region-select">
+            <option value="all">All Regions</option>
+            <option value="western-europe">Western Europe</option>
+            <option value="eastern-europe">Eastern Europe</option>
+            <option value="nordics">Nordics</option>
+            <option value="baltics">Baltics</option>
+            <option value="latin-america">Latin America</option>
+            <option value="north-america">North America</option>
+            <option value="south-southeast-asia">South & Southeast Asia</option>
+            <option value="rest-of-asia">Rest of Asia</option>
+            <option value="oceania">Oceania</option>
+            <option value="africa">Africa</option>
+            <option value="middle-east">Middle East</option>
+        </select>
+    </div>
+    <div id="map"></div>
+    <script>
+        // Karte initialisieren mit Google Maps-ähnlichem Stil
+        var map = L.map('map', {
+            zoomControl: false
+        }).setView([20, 0], 2);
+
+        // Zoom-Steuerung hinzufügen
+        L.control.zoom({
+            position: 'bottomright'
+        }).addTo(map);
+
+        // Google Maps-ähnlicher Kartenstil
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+            maxZoom: 20,
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+        }).addTo(map);
+
+        // Alle Street View Länder mit Daten (basierend auf den Namen in der HTML-Datei)
+        const streetViewCountries = {
+            // Africa
+            'Botswana': { code: 'BW', region: 'africa', color: '#75AADB', coordinates: [-22.3285, 24.6849], plates: [{ type: 'Car', front: 'Botswana_front', back: 'Botswana_back' }] },
+            'Eswatini': { code: 'SZ', region: 'africa', color: '#3E5EB9', coordinates: [-26.5225, 31.4659], plates: [{ type: 'Car', front: 'Eswatini', back: 'Eswatini' }] },
+            'Ghana': { code: 'GH', region: 'africa', color: '#006B3F', coordinates: [7.9465, -1.0232], plates: [{ type: 'Car', front: 'Ghana', back: 'Ghana' }] },
+            'Kenya': { code: 'KE', region: 'africa', color: '#006600', coordinates: [-0.0236, 37.9062], plates: [{ type: 'Car', front: 'Kenya_front', back: 'Kenya_back' }] },
+            'Lesotho': { code: 'LS', region: 'africa', color: '#00209F', coordinates: [-29.6100, 28.2336], plates: [{ type: 'Car', front: 'Lesotho', back: 'Lesotho' }] },
+            'Madagascar': { code: 'MG', region: 'africa', color: '#FC3D32', coordinates: [-18.7669, 46.8691], plates: [{ type: 'Car', front: 'Madagascar', back: 'Madagascar' }] },
+            'Nigeria': { code: 'NG', region: 'africa', color: '#008751', coordinates: [9.0820, 8.6753], plates: [{ type: 'Car', front: 'Nigeria', back: 'Nigeria' }] },
+            'Rwanda': { code: 'RW', region: 'africa', color: '#00A1DE', coordinates: [-1.9403, 29.8739], plates: [{ type: 'Car', front: 'Rwanda_front', back: 'Rwanda_back' }] },
+            'Senegal': { code: 'SN', region: 'africa', color: '#00853F', coordinates: [14.4974, -14.4524], plates: [{ type: 'Car', front: 'Senegal', back: 'Senegal' }] },
+            'SouthAfrica': {
+                code: 'ZA', region: 'africa', color: '#007A4D', coordinates: [-30.5595, 22.9375],
+                states: {
+                    'Eastern Cape': { plates: [{ front: 'South_Africa_Eastern_Cape', back: 'South_Africa_Eastern_Cape' }] },
+                    'Free State': { plates: [{ front: 'South_Africa_Free_State', back: 'South_Africa_Free_State' }] },
+                    'Gauteng': { plates: [{ front: 'South_Africa_Gauteng', back: 'South_Africa_Gauteng' }] },
+                    'KwaZulu-Natal': { plates: [{ front: 'South_Africa_KwaZulu-Natal', back: 'South_Africa_KwaZulu-Natal' }] },
+                    'Limpopo': { plates: [{ front: 'South_Africa_Limpopo', back: 'South_Africa_Limpopo' }] },
+                    'Mpumalanga': { plates: [{ front: 'South_Africa_Mpumalanga', back: 'South_Africa_Mpumalanga' }] },
+                    'North West': { plates: [{ front: 'South_Africa_North_West', back: 'South_Africa_North_West' }] },
+                    'Northern Cape': { plates: [{ front: 'South_Africa_Northern_Cape', back: 'South_Africa_Northern_Cape' }] },
+                    'Western Cape': { plates: [{ front: 'South_Africa_Western_Cape', back: 'South_Africa_Western_Cape' }] }
+                }
+            },
+            'Tunisia': { code: 'TN', region: 'middle-east', color: '#E70013', coordinates: [33.8869, 9.5375], plates: [{ type: 'Car', front: 'Tunisia', back: 'Tunisia' }] },
+            'Uganda': { code: 'UG', region: 'africa', color: '#FCDC04', coordinates: [1.3733, 32.2903], plates: [{ type: 'Car', front: 'Uganda_front', back: 'Uganda_back' }] },
+
+            // Asia
+            'Bangladesh': { code: 'BD', region: 'south-southeast-asia', color: '#006A4E', coordinates: [23.6850, 90.3563], plates: [{ type: 'Car', front: 'Bangladesh', back: 'Bangladesh' }] },
+            'Bhutan': { code: 'BT', region: 'south-southeast-asia', color: '#FF7E00', coordinates: [27.5142, 90.4336], plates: [{ type: 'Car', front: 'Bhutan', back: 'Bhutan' }] },
+            'Cambodia': { code: 'KH', region: 'south-southeast-asia', color: '#032EA1', coordinates: [12.5657, 104.9910], plates: [{ type: 'Car', front: 'Cambodia', back: 'Cambodia' }] },
+            'ChristmasIsland': { code: 'CX', region: 'south-southeast-asia', color: '#0021A5', coordinates: [-10.4475, 105.6904], plates: [{ type: 'Car', front: 'Christmas_Island', back: 'Christmas_Island' }] },
+            'India': { code: 'IN', region: 'south-southeast-asia', color: '#FF9933', coordinates: [20.5937, 78.9629], plates: [{ type: 'Car', front: 'India', back: 'India_2' }] },
+            'Indonesia': { code: 'ID', region: 'south-southeast-asia', color: '#FF0000', coordinates: [-0.7893, 113.9213], plates: [{ type: 'Car', front: 'Indonesia', back: 'Indonesia' }] },
+            'Israel': { code: 'IL', region: 'middle-east', color: '#0038B8', coordinates: [31.0461, 34.8516], plates: [{ type: 'Car', front: 'Israel', back: 'Israel' }] },
+            'Japan': {
+                code: 'JP', region: 'rest-of-asia', color: '#BC002D', coordinates: [36.2048, 138.2529],
+                plates: [
+                    { type: 'Car', front: 'Japan_white', back: 'Japan_white' },
+                    { type: 'Small car', front: 'Japan_yellow', back: 'Japan_yellow' }
+                ]
+            },
+            'Jordan': { code: 'JO', region: 'middle-east', color: '#007A3D', coordinates: [30.5852, 36.2384], plates: [{ type: 'Car', front: 'Jordan', back: 'Jordan' }] },
+            'Kyrgyzstan': { code: 'KG', region: 'rest-of-asia', color: '#E8112D', coordinates: [41.2044, 74.7661], plates: [{ type: 'Car', front: 'Kyrgyzstan_new', back: 'Kyrgyzstan_old' }] },
+            'Laos': { code: 'LA', region: 'south-southeast-asia', color: '#CE1126', coordinates: [19.8563, 102.4955], plates: [{ type: 'Car', front: 'Laos', back: 'Laos' }] },
+            'Malaysia': { code: 'MY', region: 'south-southeast-asia', color: '#010066', coordinates: [4.2105, 101.9758], plates: [{ type: 'Car', front: 'Malaysia', back: 'Malaysia' }] },
+            'Mongolia': { code: 'MN', region: 'rest-of-asia', color: '#C4272F', coordinates: [46.8625, 103.8467], plates: [{ type: 'Car', front: 'Mongolia', back: 'Mongolia' }] },
+            'Philippines': {
+                code: 'PH', region: 'south-southeast-asia', color: '#0038A8', coordinates: [12.8797, 121.7740],
+                plates: [
+                    { type: 'Car', front: 'Philippines_new', back: 'Philippines_new' },
+                    { type: 'Car 2003-2014', front: 'Philippines_old', back: 'Philippines_old' }
+                ]
+            },
+            'Qatar': {
+                code: 'QA',
+                region: 'middle-east',
+                color: '#857437',
+                coordinates: [25.3548, 51.1839],
+                plates: [
+                    { type: 'Type 1', front: 'Qatar', imageUrl: 'https://geomastr.com/assets/media/licenseplates/Qatar.jpg' },
+                    { type: 'Type 2', front: 'Qatar2', imageUrl: 'https://geomastr.com/assets/media/licenseplates/Qatar2.jpg' },
+                    { type: 'Type 3', front: 'Qatar3', imageUrl: 'https://geomastr.com/assets/media/licenseplates/Qatar3.jpg' }
+                ]
+            },
+            'Russia': { code: 'RU', region: 'eastern-europe', color: '#0039A6', coordinates: [61.5240, 105.3188], plates: [{ type: 'Car', front: 'Russia', back: 'Russia' }] },
+            'Singapore': { code: 'SG', region: 'south-southeast-asia', color: '#EF3340', coordinates: [1.3521, 103.8198], plates: [{ type: 'Car', front: 'Singapore_front', back: 'Singapore_back' }] },
+            'SouthKorea': { code: 'KR', region: 'rest-of-asia', color: '#003478', coordinates: [35.9078, 127.7669], plates: [{ type: 'Car', front: 'South_Korea', back: 'South_Korea' }] },
+            'SriLanka': { code: 'LK', region: 'south-southeast-asia', color: '#8D153A', coordinates: [7.8731, 80.7718], plates: [{ type: 'Car', front: 'Sri_Lanka_front', back: 'Sri_Lanka_back' }] },
+            'Taiwan': { code: 'TW', region: 'rest-of-asia', color: '#FE0000', coordinates: [23.6978, 120.9605], plates: [{ type: 'Car', front: 'Taiwan', back: 'Taiwan' }] },
+            'Thailand': { code: 'TH', region: 'south-southeast-asia', color: '#00247D', coordinates: [15.8700, 100.9925], plates: [{ type: 'Car', front: 'Thailand', back: 'Thailand' }] },
+            'UnitedArabEmirates': {
+                code: 'AE', region: 'middle-east', color: '#00732F', coordinates: [23.4241, 53.8478],
+                states: {
+                    'Abu Dhabi': { plates: [{ front: 'UAE_Abu_Dhabi', back: 'UAE_Abu_Dhabi' }] },
+                    'Ajman': { plates: [{ front: 'UAE_Ajman', back: 'UAE_Ajman' }] },
+                    'Dubai': { plates: [{ front: 'UAE_Dubai', back: 'UAE_Dubai' }] },
+                    'Fujairah': { plates: [{ front: 'UAE_Fujairah', back: 'UAE_Fujairah' }] },
+                    'Ras Al Khaimah': { plates: [{ front: 'UAE_Ras_Al_Khaimah', back: 'UAE_Ras_Al_Khaimah' }] },
+                    'Sharjah': { plates: [{ front: 'UAE_Sharjah', back: 'UAE_Sharjah' }] },
+                    'Umm Al Quwain': { plates: [{ front: 'UAE_Umm_Al_Quwain', back: 'UAE_Umm_Al_Quwain' }] }
+                }
+            },
+            'Vietnam': { code: 'VN', region: 'south-southeast-asia', color: '#DA251D', coordinates: [14.0583, 108.2772], plates: [{ type: 'Car', front: 'Vietnam', back: 'Vietnam' }] },
+
+            // Europe
+            'Albania': { code: 'AL', region: 'eastern-europe', color: '#E41E20', coordinates: [41.1533, 20.1683], plates: [{ type: 'Car', front: 'Albania_new', back: 'Albania_new' }] },
+            'Andorra': { code: 'AD', region: 'western-europe', color: '#D0103A', coordinates: [42.5063, 1.5218], plates: [{ type: 'Car', front: 'Andorra', back: 'Andorra' }] },
+            'Austria': { code: 'AT', region: 'western-europe', color: '#ED2939', coordinates: [47.5162, 14.5501], plates: [{ type: 'Car', front: 'Austria', back: 'Austria' }] },
+            'Belgium': { code: 'BE', region: 'western-europe', color: '#FDDA25', coordinates: [50.5039, 4.4699], plates: [{ type: 'Car', front: 'Belgium_new', back: 'Belgium_new' }] },
+            'Bulgaria': {
+                code: 'BG', region: 'eastern-europe', color: '#009B74', coordinates: [42.7339, 25.4858],
+                plates: [
+                    { type: 'Car new', front: 'Bulgaria_new', back: 'Bulgaria_new' },
+                    { type: 'Car old', front: 'Bulgaria_old', back: 'Bulgaria_old' },
+                ]
+            },
+            'Croatia': {
+                code: 'HR', region: 'eastern-europe', color: '#D22730', coordinates: [45.1000, 15.2000],
+                plates: [
+                    { type: 'Car new', front: 'Croatia_new', back: 'Croatia_new' },
+                    { type: 'Car old', front: 'Croatia_old', back: 'Croatia_old' },
+                ]
+            },
+            'CzechRepublic': { code: 'CZ', region: 'eastern-europe', color: '#11457E', coordinates: [49.8175, 15.4730], plates: [{ type: 'Car', front: 'Czech_Republic', back: 'Czech_Republic' }] },
+            'Denmark': {
+                code: 'DK', region: 'nordics', color: '#C8102E', coordinates: [56.2639, 9.5018],
+                plates: [
+                    { type: 'Car', front: 'Denmark_private', back: 'Denmark_private' },
+                    { type: 'Commercial', front: 'Denmark_commercial', back: 'Denmark_commercial' },
+                    { type: 'Semi-commercial', front: 'Denmark_parrot', back: 'Denmark_parrot' }
+                ]
+            },
+            'Estonia': { code: 'EE', region: 'baltics', color: '#0072CE', coordinates: [58.5953, 25.0136], plates: [{ type: 'Car', front: 'Estonia', back: 'Estonia' }] },
+            'FaroeIslands': { code: 'FO', region: 'nordics', color: '#0065BD', coordinates: [61.8926, -6.9118], plates: [{ type: 'Car', front: 'Faroe_Islands', back: 'Faroe_Islands' }] },
+            'Finland': { code: 'FI', region: 'nordics', color: '#002F6C', coordinates: [61.9241, 25.7482], plates: [{ type: 'Car', front: 'Finland', back: 'Finland' }] },
+            'France': {
+                code: 'FR', region: 'western-europe', color: '#0055A4', coordinates: [46.6034, 1.8883],
+                plates: [
+                    { type: 'Car new', front: 'France_new', back: 'France_new' },
+                    { type: 'Car old', front: 'France_old_front', back: 'France_old_back' },
+
+                ]
+            },
+            'Germany': { code: 'DE', region: 'western-europe', color: '#DD0000', coordinates: [51.1657, 10.4515], plates: [{ type: 'Car', front: 'Germany', back: 'Germany' }] },
+            'Gibraltar': {
+                code: 'GI',
+                region: 'western-europe',
+                color: '#D20000',
+                coordinates: [36.1408, -5.3536],
+                plates: [
+                    { type: 'Standard Plate', front: 'Gibraltar_front', back: 'Gibraltar_back' }
+                ]
+            },
+            'Greece': { code: 'GR', region: 'western-europe', color: '#0D5EAF', coordinates: [39.0742, 21.8243], plates: [{ type: 'Car', front: 'Greece', back: 'Greece' }] },
+            'Hungary': { code: 'HU', region: 'eastern-europe', color: '#CE2939', coordinates: [47.1625, 19.5033], plates: [{ type: 'Car', front: 'Hungary', back: 'Hungary' }] },
+            'Iceland': { code: 'IS', region: 'nordics', color: '#02529C', coordinates: [64.9631, -19.0208], plates: [{ type: 'Car', front: 'Iceland', back: 'Iceland' }] },
+            'Ireland': { code: 'IE', region: 'western-europe', color: '#169B62', coordinates: [53.1424, -7.6921], plates: [{ type: 'Car', front: 'Ireland', back: 'Ireland' }] },
+            'IsleofMan': {
+                code: 'IM',
+                region: 'western-europe',
+                color: '#BC002D',
+                coordinates: [54.2361, -4.5481],
+                plates: [
+                    { type: 'Standard Plate', front: 'Isle_of_Man_front', back: 'Isle_of_Man_back' }
+                ]
+            },
+            'Italy': {
+                code: 'IT', region: 'western-europe', color: '#008C45', coordinates: [41.8719, 12.5674],
+                plates: [
+                    { type: 'Car new', front: 'Italy_new', back: 'Italy_new' },
+                    { type: 'Car old', front: 'Italy_old', back: 'Italy_old' },
+                ]
+            },
+            'Jersey': {
+                code: 'JE',
+                region: 'western-europe',
+                color: '#D20000',
+                coordinates: [49.2144, -2.1312],
+                plates: [
+                    { type: 'Standard Plate', front: 'Jersey_front', back: 'Jersey_back' }
+                ]
+            },
+            'Latvia': { code: 'LV', region: 'baltics', color: '#9E3039', coordinates: [56.8796, 24.6032], plates: [{ type: 'Car', front: 'Latvia', back: 'Latvia' }] },
+            'Lithuania': { code: 'LT', region: 'baltics', color: '#FDB913', coordinates: [55.1694, 23.8813], plates: [{ type: 'Car', front: 'Lithuania', back: 'Lithuania' }] },
+            'Luxembourg': { code: 'LU', region: 'western-europe', color: '#00A1DE', coordinates: [49.8153, 6.1296], plates: [{ type: 'Car', front: 'Luxembourg', back: 'Luxembourg' }] },
+            'Malta': { code: 'MT', region: 'western-europe', color: '#CF142B', coordinates: [35.9375, 14.3754], plates: [{ type: 'Car', front: 'Malta', back: 'Malta' }] },
+            'Monaco': {
+                code: 'MC', region: 'western-europe', color: '#CE1126', coordinates: [43.7384, 7.4246],
+                plates: [
+                    { type: 'Standard Plate', front: 'Monaco_front', back: 'Monaco_back' }
+                ]
+            },
+            'Montenegro': {
+                code: 'ME', region: 'eastern-europe', color: '#C40308', coordinates: [42.7087, 19.3744],
+                plates: [
+                    { type: 'Car new', front: 'Montenegro_new', back: 'Montenegro_new' },
+                    { type: 'Car old', front: 'Montenegro_old', back: 'Montenegro_old' },
+                ]
+            },
+            'Netherlands': {
+                code: 'NL', region: 'western-europe', color: '#AE1C28', coordinates: [52.1326, 5.2913],
+                plates: [{ type: 'Car', front: 'Netherlands', back: 'Netherlands' }]
+            },
+            'NorthMacedonia': {
+                code: 'MK', region: 'eastern-europe', color: '#D20000', coordinates: [41.6086, 21.7453],
+                plates: [
+                    { type: 'Car new', front: 'North_Macedonia_new', back: 'North_Macedonia_new' },
+                    { type: 'Car old', front: 'North_Macedonia_old', back: 'North_Macedonia_old' },
+                ]
+            },
+            'Norway': {
+                code: 'NO', region: 'nordics', color: '#EF2B2D', coordinates: [60.4720, 8.4689],
+                plates: [
+                    { type: 'Car', front: 'Norway_private', back: 'Norway_private' },
+                    { type: 'Semi-commercial', front: 'Norway_commercial', back: 'Norway_commercial' }
+                ]
+            },
+            'Poland': {
+                code: 'PL', region: 'eastern-europe', color: '#DC143C', coordinates: [51.9194, 19.1451],
+                plates: [{ type: 'Car', front: 'Poland', back: 'Poland' }
+                ]
+            },
+            'Portugal': {
+                code: 'PT', region: 'western-europe', color: '#006600', coordinates: [39.3999, -8.2245],
+                plates: [
+                    { type: 'Car new', front: 'Portugal_new', back: 'Portugal_new' },
+                    { type: 'Car old', front: 'Portugal_old', back: 'Portugal_old' },
+                ]
+            },
+            'Romania': {
+                code: 'RO', region: 'eastern-europe', color: '#002B7F', coordinates: [45.9432, 24.9668],
+                plates: [
+                    { type: 'Car', front: 'Romania', back: 'Romania' }
+                ]
+            },
+            'SanMarino': {
+                code: 'SM', region: 'western-europe', color: '#7CB342', coordinates: [43.9424, 12.4583],
+                plates: [
+                    { type: 'Car', front: 'San_Marino', back: 'San_Marino' }
+                ]
+            },
+            'Serbia': {
+                code: 'RS', region: 'eastern-europe', color: '#C6363C', coordinates: [44.0165, 21.0059],
+                plates: [
+                    { type: 'Car new', front: 'Serbia_new', back: 'Serbia_new' },
+                    { type: 'Car old', front: 'Serbia_old', back: 'Serbia_old' },
+                ]
+            },
+            'Slovakia': {
+                code: 'SK', region: 'eastern-europe', color: '#0B4EA2', coordinates: [48.6690, 19.6990],
+                plates: [
+                    { type: 'Car', front: 'Slovakia', back: 'Slovakia' }
+                ]
+            },
+            'Slovenia': {
+                code: 'SI', region: 'eastern-europe', color: '#005DA4', coordinates: [46.1512, 14.9955],
+                plates: [
+                    { type: 'Car new', front: 'Slovenia_new', back: 'Slovenia_new' },
+                    { type: 'Car old', front: 'Slovenia_old', back: 'Slovenia_old' },
+                    { type: 'Car old 2', front: 'Slovenia_old_2', back: 'Slovenia_old_2' },
+                ]
+            },
+            'Spain': {
+                code: 'ES', region: 'western-europe', color: '#AA151B', coordinates: [40.4637, -3.7492],
+                plates: [
+                    { type: 'Car', front: 'Spain', back: 'Spain' }
+                ]
+            },
+            'Sweden': {
+                code: 'SE', region: 'nordics', color: '#006AA7', coordinates: [60.1282, 18.6435],
+                plates: [
+                    { type: 'Car new', front: 'Sweden_new', back: 'Sweden_new' },
+                    { type: 'Car old', front: 'Sweden_old', back: 'Sweden_old' },
+                ]
+            },
+            'Switzerland': {
+                code: 'CH', region: 'western-europe', color: '#FF0000', coordinates: [46.8182, 8.2275],
+                plates: [
+                    { type: 'Car', front: 'Switzerland', back: 'Switzerland' }
+                ]
+            },
+            'Turkey': {
+                code: 'TR', region: 'middle-east', color: '#E30A17', coordinates: [38.9637, 35.2433],
+                plates: [
+                    { type: 'Car', front: 'Turkey', back: 'Turkey' }
+
+                ]
+            },
+            'Ukraine': {
+                code: 'UA', region: 'eastern-europe', color: '#0057B7', coordinates: [48.3794, 31.1656],
+                plates: [
+                    { type: 'Car new', front: 'Ukraine_new', back: 'Ukraine_new' },
+                    { type: 'Car old', front: 'Ukraine_old', back: 'Ukraine_old' },
+                ]
+
+            },
+            'UnitedKingdom': {
+                code: 'GB', region: 'western-europe', color: '#012169', coordinates: [55.3781, -3.4360],
+                plates: [
+                    { type: 'Car', front: 'UK_blank_front', back: 'UK_blank_back' },
+                    { type: 'Car EU', front: 'UK_EU_front', back: 'UK_EU_back' },
+                    { type: 'Car SCO', front: 'UK_SCO_front', back: 'UK_SCO_back' },
+                    { type: 'Car CYM', front: 'UK_CYM_front', back: 'UK_CYM_back' },
+                    { type: 'Car ENG', front: 'UK_ENG_front', back: 'UK_ENG_back' },
+                    { type: 'Car GB', front: 'UK_GB_front', back: 'UK_GB_back' },
+                ]
+            },
+
+            // North America
+            'Bermuda': {
+                code: 'BM',
+                region: 'north-america',
+                color: '#CF142B',
+                coordinates: [32.3078, -64.7505],
+                plates: [
+                    { type: 'Type 1', imageUrl: 'https://geomastr.com/assets/media/licenseplates/Bermuda.jpg' },
+                    { type: 'Type 2', imageUrl: 'https://geomastr.com/assets/media/licenseplates/Bermuda2.jpg' }
+                ]
+            },
+
+            'Canada': {
+                code: 'CA', region: 'north-america', color: '#FF0000', coordinates: [56.1304, -106.3468],
+                states: {
+                    'Alberta': { coordinates: [53.9333, -116.5765], plates: [{ front: 'Canada_Alberta', back: 'Canada_Alberta' }] },
+                    'British Columbia': { coordinates: [53.7267, -127.6476], plates: [{ front: 'Canada_BC', back: 'Canada_BC' }] },
+                    'Manitoba': { coordinates: [53.7609, -98.8139], plates: [{ front: 'Canada_Manitoba', back: 'Canada_Manitoba' }] },
+                    'New Brunswick': { coordinates: [46.5653, -66.4619], plates: [{ front: 'Canada_NB', back: 'Canada_NB' }] },
+                    'Newfoundland and Labrador': { coordinates: [53.1355, -57.6604], plates: [{ front: 'Canada_NL', back: 'Canada_NL' }] },
+                    'Northwest Territories': { coordinates: [64.8255, -124.8457], plates: [{ front: 'Canada_NT', back: 'Canada_NT' }] },
+                    'Nova Scotia': { coordinates: [44.6820, -63.7443], plates: [{ front: 'Canada_NS', back: 'Canada_NS' }] },
+                    'Nunavut': { coordinates: [70.2998, -83.1076], plates: [{ front: 'Canada_Nunavut', back: 'Canada_Nunavut' }] },
+                    'Ontario': { coordinates: [43.7000, -79.4000], plates: [{ front: 'Canada_Ontario', back: 'Canada_Ontario' }] },
+                    'Prince Edward Island': { coordinates: [46.2906, -63.1302], plates: [{ front: 'Canada_PEI', back: 'Canada_PEI' }] },
+                    'Quebec': { coordinates: [52.9399, -73.5491], plates: [{ front: 'Canada_Quebec', back: 'Canada_Quebec' }] },
+                    'Saskatchewan': { coordinates: [52.9399, -106.4509], plates: [{ front: 'Canada_Saskatchewan', back: 'Canada_Saskatchewan' }] },
+                    'Yukon': { coordinates: [64.2823, -135.0000], plates: [{ front: 'Canada_Yukon', back: 'Canada_Yukon' }] }
+                }
+            },
+            'Curaçao': {
+                code: 'CW', region: 'latin-america', color: '#002B7F', coordinates: [12.1696, -68.9900],
+                plates: [
+                    { type: 'Car', front: 'Curacao', back: 'Curacao' }
+                ]
+            },
+            'DominicanRepublic': {
+                code: 'DO', region: 'latin-america', color: '#002D62', coordinates: [18.7357, -70.1627],
+                plates: [
+                    { type: 'Car', front: 'Dominican_Republic', back: 'Dominican_Republic' }
+                ]
+            },
+            'Greenland': {
+                code: 'GL', region: 'nordics', color: '#C8102E', coordinates: [71.7069, -42.6043],
+                plates: [
+                    { type: 'Car', front: 'Greenland', back: 'Greenland' }
+                ]
+            },
+            'Guatemala': {
+                code: 'GT', region: 'latin-america', color: '#4997D0', coordinates: [15.7835, -90.2308],
+                plates: [
+                    { type: 'Car new', front: 'Guatemala_new', back: 'Guatemala_new' },
+                    { type: 'Car old', front: 'Guatemala_old', back: 'Guatemala_old' },
+                ]
+            },
+            'Mexico': {
+                code: 'MX',
+                region: 'north-america',
+                color: '#006847',
+                coordinates: [23.6345, -102.5528],
+                plates: [
+                    { type: 'Type 1', front: 'Mexico', imageUrl: 'https://geomastr.com/assets/media/licenseplates/Mexico.jpg' },
+                    { type: 'Type 2', front: 'Mexico2', imageUrl: 'https://geomastr.com/assets/media/licenseplates/Mexico2.jpg' },
+                    { type: 'Type 3', front: 'Mexico3', imageUrl: 'https://geomastr.com/assets/media/licenseplates/Mexico3.jpg' },
+                    { type: 'Type 4', front: 'Mexico4', imageUrl: 'https://geomastr.com/assets/media/licenseplates/Mexico4.jpg' },
+                    { type: 'Type 5', front: 'Mexico5', imageUrl: 'https://geomastr.com/assets/media/licenseplates/Mexico5.jpg' },
+                    { type: 'Type 6', front: 'Mexico6', imageUrl: 'https://geomastr.com/assets/media/licenseplates/Mexico6.jpg' },
+                    { type: 'Type 7', front: 'Mexico7', imageUrl: 'https://geomastr.com/assets/media/licenseplates/Mexico7.jpg' },
+                    { type: 'Type 8', front: 'Mexico8', imageUrl: 'https://geomastr.com/assets/media/licenseplates/Mexico8.jpg' },
+                    { type: 'Type 9', front: 'Mexico9', imageUrl: 'https://geomastr.com/assets/media/licenseplates/Mexico9.jpg' },
+                    { type: 'Type 10', front: 'Mexico10', imageUrl: 'https://geomastr.com/assets/media/licenseplates/Mexico10.jpg' },
+                    { type: 'Type 11', front: 'Mexico11', imageUrl: 'https://geomastr.com/assets/media/licenseplates/Mexico11.jpg' },
+                    { type: 'Type 12', front: 'Mexico12', imageUrl: 'https://geomastr.com/assets/media/licenseplates/Mexico12.jpg' },
+                    { type: 'Type 13', front: 'Mexico13', imageUrl: 'https://geomastr.com/assets/media/licenseplates/Mexico13.jpg' },
+                    { type: 'Type 14', front: 'Mexico14', imageUrl: 'https://geomastr.com/assets/media/licenseplates/Mexico14.jpg' },
+                    { type: 'Type 15', front: 'Mexico15', imageUrl: 'https://geomastr.com/assets/media/licenseplates/Mexico15.jpg' },
+                    { type: 'Type 16', front: 'Mexico16', imageUrl: 'https://geomastr.com/assets/media/licenseplates/Mexico16.jpg' },
+                    { type: 'Type 17', front: 'Mexico17', imageUrl: 'https://geomastr.com/assets/media/licenseplates/Mexico17.jpg' },
+                    { type: 'Type 18', front: 'Mexico18', imageUrl: 'https://geomastr.com/assets/media/licenseplates/Mexico18.jpg' },
+                    { type: 'Type 19', front: 'Mexico19', imageUrl: 'https://geomastr.com/assets/media/licenseplates/Mexico19.jpg' },
+                    { type: 'Type 20', front: 'Mexico20', imageUrl: 'https://geomastr.com/assets/media/licenseplates/Mexico20.jpg' }
+                ]
+            },
+            'PuertoRico': {
+                code: 'PR', region: 'latin-america', color: '#E12229', coordinates: [18.2208, -66.5901],
+                plates: [
+                    { type: 'Car new', front: 'Puerto_Rico_new', back: 'Puerto_Rico_new' },
+                    { type: 'Car old', front: 'Puerto_Rico_old', back: 'Puerto_Rico_old' },
+                    { type: 'Car old 2', front: 'Puerto_Rico_old2', back: 'Puerto_Rico_old2' },
+                ]
+
+            },
+            'Unitedstates': {
+                code: 'US',
+                region: 'north-america',
+                color: '#3C3B6E',
+                states: {
+                    'Utah': {
+                        coordinates: [39.3210, -111.0937],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_UT_2007b', back: 'plate_UT_2007b' }
+                        ]
+                    },
+                    'Ohio': {
+                        coordinates: [40.3888, -82.7649],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_OH_2013', back: 'plate_OH_2013' }
+                        ]
+                    },
+                    'California': {
+                        coordinates: [36.7783, -119.4179],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_CA_1994', back: 'plate_CA_1994' }
+                        ]
+                    },
+                    'Alabama': {
+                        coordinates: [32.3777, -86.3006],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_AL_2022', back: 'plate_AL_2014' }
+                        ]
+                    },
+                    'Alaska': {
+                        coordinates: [61.2174, -149.8528],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_AK_2015', back: 'plate_AK_2008' }
+                        ]
+                    },
+                    'Arizona': {
+                        coordinates: [33.4484, -112.0740],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_AZ_1996', back: 'plate_AZ_1996' }
+                        ]
+                    },
+                    'Arkansas': {
+                        coordinates: [34.7360, -92.3311],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_AR_2006', back: 'plate_AR_2006' }
+                        ]
+                    },
+                    'Connecticut': {
+                        coordinates: [41.6032, -73.0877],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_CT_2000', back: 'plate_CT_2000' }
+                        ]
+                    },
+                    'Colorado': {
+                        coordinates: [39.7392, -104.9903],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_CO_1992', back: 'plate_CO_2000' }
+                        ]
+                    },
+                    'Delaware': {
+                        coordinates: [39.7459, -75.5268],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_DE_1969', back: 'plate_DE_1969' }
+                        ]
+                    },
+                    'Florida': {
+                        coordinates: [27.9506, -82.4572],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_FL_2003', back: 'plate_FL_2003' }
+                        ]
+                    },
+                    'Georgia': {
+                        coordinates: [32.7504, -83.7768],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_GA_2012b', back: 'plate_GA_2012a' }
+                        ]
+                    },
+                    'Hawaii': {
+                        coordinates: [21.3070, -157.8585],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_HI_1991', back: 'plate_HI_1991' }
+                        ]
+                    },
+                    'Idaho': {
+                        coordinates: [43.8298, -114.4407],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_ID_1997', back: 'plate_ID_1997' }
+                        ]
+                    },
+                    'Illinois': {
+                        coordinates: [40.6333, -89.3985],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_IL_2017', back: 'plate_IL_2001' }
+                        ]
+                    },
+                    'Indiana': {
+                        coordinates: [40.2672, -86.1384],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_IN_2017', back: 'plate_IN_2008' }
+                        ]
+                    },
+                    'Iowa': {
+                        coordinates: [41.8780, -93.0977],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_IA_2018', back: 'plate_IA_1997' }
+                        ]
+                    },
+                    'Kansas': {
+                        coordinates: [38.5266, -96.7265],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_KS_2007', back: 'plate_KS_2001' }
+                        ]
+                    },
+                    'Kentucky': {
+                        coordinates: [37.8393, -84.2700],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_KY_2005', back: 'plate_KY_2005' }
+                        ]
+                    },
+                    'Louisiana': {
+                        coordinates: [31.2442, -92.1402],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_LA_2005', back: 'plate_LA_2005' }
+                        ]
+                    },
+                    'Maine': {
+                        coordinates: [44.6939, -69.3819],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_ME_1999', back: 'plate_ME_1999' }
+                        ]
+                    },
+                    'Maryland': {
+                        coordinates: [39.0458, -76.6413],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_MD_2016', back: 'plate_MD_2010' }
+                        ]
+                    },
+                    'Massachusetts': {
+                        coordinates: [42.3645, -71.0388],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_MA_1993', back: 'plate_MA_1993' }
+                        ]
+                    },
+                    'Michigan': {
+                        coordinates: [44.3148, -85.6024],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_MI_2014', back: 'plate_MI_2007a' }
+                        ]
+                    },
+                    'Minnesota': {
+                        coordinates: [46.7296, -94.6859],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_MN_1987', back: 'plate_MN_1987' }
+                        ]
+                    },
+                    'Mississippi': {
+                        coordinates: [32.3547, -89.3985],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_MS_2019', back: 'plate_MS_2012' }
+                        ]
+                    },
+                    'Missouri': {
+                        coordinates: [38.6886, -92.2028],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_MO_2008', back: 'plate_MO_1997' }
+                        ]
+                    },
+                    'Montana': {
+                        coordinates: [46.8797, -110.3626],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_MT_2010', back: 'plate_MT_2006' }
+                        ]
+                    },
+                    'Nebraska': {
+                        coordinates: [41.4717, -99.9004],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_NE_2023', back: 'plate_NE_2011' }
+                        ]
+                    },
+                    'Nevada': {
+                        coordinates: [38.8026, -116.4194],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_NV_2016', back: 'plate_NV_2001' }
+                        ]
+                    },
+                    'NewHampshire': {
+                        coordinates: [43.1939, -71.5724],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_NH_1999', back: 'plate_NH_1999' }
+                        ]
+                    },
+                    'NewJersey': {
+                        coordinates: [40.0583, -74.4057],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_NJ_1992', back: 'plate_NJ_1992' }
+                        ]
+                    },
+                    'NewMexico': {
+                        coordinates: [34.9839, -106.2769],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_NM_2017', back: 'plate_NM_1990' }
+                        ]
+                    },
+                    'NewYork': {
+                        coordinates: [43.2994, -74.2179],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_NY_2010', back: 'plate_NY_2001' }
+                        ]
+                    },
+                    'NorthCarolina': {
+                        coordinates: [35.7596, -79.0193],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_NC_1982', back: 'plate_NC_1982' }
+                        ]
+                    },
+                    'NorthDakota': {
+                        coordinates: [47.4679, -100.4477],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_ND_2015', back: 'plate_ND_1993' }
+                        ]
+                    },
+                    'Oklahoma': {
+                        coordinates: [35.4676, -97.5164],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_OK_2017', back: 'plate_OK_2009' }
+                        ]
+                    },
+                    'Oregon': {
+                        coordinates: [44.0521, -123.0405],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_OR_1989', back: 'plate_OR_1989' }
+                        ]
+                    },
+                    'Pennsylvania': {
+                        coordinates: [40.2672, -76.8875],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_PA_2004', back: 'plate_PA_2004' }
+                        ]
+                    },
+                    'RhodeIsland': {
+                        coordinates: [41.8240, -71.4206],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_RI_1996', back: 'plate_RI_1996' }
+                        ]
+                    },
+                    'SouthCarolina': {
+                        coordinates: [33.8361, -80.9450],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_SC_2016', back: 'plate_SC_2008' }
+                        ]
+                    },
+                    'SouthDakota': {
+                        coordinates: [44.2998, -100.4836],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_SD_2006', back: 'plate_SD_2006' }
+                        ]
+                    },
+                    'Tennessee': {
+                        coordinates: [35.5175, -86.5804],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_TN_2022', back: 'plate_TN_2006' }
+                        ]
+                    },
+                    'Texas': {
+                        coordinates: [31.9686, -99.9018],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_TX_2012', back: 'plate_TX_2009' }
+                        ]
+                    },
+                    'Vermont': {
+                        coordinates: [44.0710, -72.6683],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_VT_1990', back: 'plate_VT_1990' }
+                        ]
+                    },
+                    'Virginia': {
+                        coordinates: [37.4316, -78.6569],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_VA_2008', back: 'plate_VA_2008' }
+                        ]
+                    },
+                    'WestVirginia': {
+                        coordinates: [38.5976, -80.4550],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_WV_1995', back: 'plate_WV_1995' }
+                        ]
+                    },
+                    'Wisconsin': {
+                        coordinates: [44.7844, -89.7254],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_WI_2000', back: 'plate_WI_2000' }
+                        ]
+                    },
+                    'Wyoming': {
+                        coordinates: [43.0755, -107.2902],
+                        plates: [
+                            { type: 'Standard Plate', front: 'plate_WY_2016', back: 'plate_WY_2016' }
+                        ]
+                    }
+                }
+            },
+
+            // Oceania
+            'AmericanSamoa': {
+                code: 'AS', region: 'oceania', color: '#002868', coordinates: [-14.2710, -170.1322],
+                plates: [
+                    { type: 'Car new', front: 'American_Samoa_new', back: 'American_Samoa_new' },
+                    { type: 'Car old', front: 'American_Samoa_old', back: 'American_Samoa_old' },
+                ]
+            },
+            'Australia': {
+                code: 'AU', region: 'oceania', color: '#00008B', coordinates: [-25.2744, 133.7751],
+                states: {
+                    'Australian Capital Territory': {
+                        coordinates: [-35.2809, 149.1300],
+                        plates: [
+                            { front: 'Australia_ACT', back: 'Australia_ACT' }
+                        ]
+                    },
+                    'New South Wales': {
+                        coordinates: [-33.8651, 151.2094],
+                        plates: [
+                            { front: 'Australia_NSW', back: 'Australia_NSW' }
+                        ]
+                    },
+                    'Northern Territory': {
+                        coordinates: [-12.4634, 130.8456],
+                        plates: [
+                            { front: 'Australia_NT', back: 'Australia_NT' }
+                        ]
+                    },
+                    'Queensland': {
+                        coordinates: [-27.4675, 153.0278],
+                        plates: [
+                            { front: 'Australia_Queensland', back: 'Australia_Queensland' }
+                        ]
+                    },
+                    'South Australia': {
+                        coordinates: [-34.9285, 138.6007],
+                        plates: [{ front: 'Australia_SA', back: 'Australia_SA' }
+                        ]
+                    },
+                    'Tasmania': {
+                        coordinates: [-42.8806, 147.3250],
+                        plates: [{ front: 'Australia_Tasmania', back: 'Australia_Tasmania' }
+                        ]
+                    },
+                    'Victoria': {
+                        coordinates: [-37.8136, 144.9631],
+                        plates: [{ front: 'Australia_Victoria', back: 'Australia_Victoria' }
+                        ]
+                    },
+                    'Western Australia': {
+                        coordinates: [-31.9505, 115.8605],
+                        plates: [{ front: 'Australia_WA', back: 'Australia_WA' }
+                        ]
+                    }
+                }
+            },
+            'Guam': {
+                code: 'GU', region: 'oceania', color: '#3A5EAB', coordinates: [13.4443, 144.7937],
+                plates: [
+                    { type: 'Car new', front: 'Guam_new', back: 'Guam_new' },
+                    { type: 'Car old', front: 'Guam_old', back: 'Guam_old' },
+                ]
+            },
+            'NewZealand': {
+                code: 'NZ', region: 'oceania', color: '#00247D', coordinates: [-40.9006, 174.8860],
+                plates: [
+                    { type: 'Car', front: 'New_Zealand', back: 'New_Zealand' }
+                ]
+            },
+            'NorthernMarianaIslands': {
+                code: 'MP', region: 'oceania', color: '#0A3161', coordinates: [15.0979, 145.6739],
+                plates: [
+                    { type: 'Car', front: 'Northern_Mariana_Islands', back: 'Northern_Mariana_Islands' }
+                ]
+            },
+
+            // South America
+            'Argentina': {
+                code: 'AR', region: 'latin-america', color: '#75AADB', coordinates: [-38.4161, -63.6167],
+                plates: [
+                    { type: 'Car new', front: 'Argentina_new', back: 'Argentina_new' },
+                    { type: 'Car old', front: 'Argentina_old', back: 'Argentina_old' },
+                ]
+            },
+            'Bolivia': {
+                code: 'BO', region: 'latin-america', color: '#007934', coordinates: [-16.2902, -63.5887],
+                plates: [
+                    { type: 'Car', front: 'Bolivia', back: 'Bolivia' }
+                ]
+            },
+            'Brazil': {
+                code: 'BR', region: 'latin-america', color: '#009C3B', coordinates: [-14.2350, -51.9253],
+                plates: [
+                    { type: 'Car new', front: 'Brazil_new', back: 'Brazil_new' },
+                    { type: 'Car old', front: 'Brazil_old', back: 'Brazil_old' },
+                ]
+            },
+            'Chile': {
+                code: 'CL', region: 'latin-america', color: '#0039A6', coordinates: [-35.6751, -71.5430],
+                plates: [
+                    { type: 'Car', front: 'Chile', back: 'Chile' }
+                ]
+            },
+            'Colombia': {
+                code: 'CO', region: 'latin-america', color: '#FCD116', coordinates: [4.5709, -74.2973],
+                plates: [
+                    { type: 'Car', front: 'Colombia', back: 'Colombia' }
+                ]
+            },
+            'Ecuador': {
+                code: 'EC', region: 'latin-america', color: '#FFD100', coordinates: [-1.8312, -78.1834],
+                plates: [
+                    { type: 'Car', front: 'Ecuador', back: 'Ecuador' }
+                ]
+            },
+            'Peru': {
+                code: 'PE', region: 'latin-america', color: '#D91023', coordinates: [-9.1900, -75.0152],
+                plates: [
+                    { type: 'Car', front: 'Peru', back: 'Peru' }
+                ]
+            },
+            'Uruguay': {
+                code: 'UY', region: 'latin-america', color: '#0038A8', coordinates: [-32.5228, -55.7658],
+                plates: [
+                    { type: 'Car new', front: 'Uruguay_new', back: 'Uruguay_new' },
+                    { type: 'Car old', front: 'Uruguay_old', back: 'Uruguay_old' },
+                ]
+
+            },
+            'USVirginIslands': {
+                code: 'VI', region: 'latin-america', color: '#0052A5', coordinates: [18.3358, -64.8963],
+                plates: [
+                    { type: 'Car new', front: 'US_VI_new', back: 'US_VI_new' },
+                    { type: 'Car old', front: 'US_VI_old', back: 'US_VI_old' },
+                ]
+
+            },
+        };
+        // Funktion zum Anzeigen der License Plates
+        function displayLicensePlates(country, state = null) {
+            const countryInfo = streetViewCountries[country];
+            if (!countryInfo) {
+                return '<div class="loading">Country data not available</div>';
+            }
+
+            const flag = countryInfo.code
+                ? `🇪🇺`.replace(/🇪🇺/g, function (match) {
+                    return Array.from(countryInfo.code.toUpperCase())
+                        .map((c) => String.fromCodePoint(c.charCodeAt(0) + 127397))
+                        .join('');
+                })
+                : '🌍';
+
+            let content = `
+        <div class="popup-container">
+            <div class="country-header">
+                <span class="country-flag">${flag}</span>
+                <span class="country-name">
+                    ${formatCountryName(country)} ${state ? '(' + state + ')' : ''}
+                </span>
+            </div>
+            <div class="license-plates-container">
+    `;
+
+            if (state && countryInfo.states && countryInfo.states[state]) {
+                // Case for countries with states
+                const stateData = countryInfo.states[state];
+                if (stateData.plates) {
+                    stateData.plates.forEach((plate) => {
+                        content += generateLicensePlateHTML(plate, country, state);
+                    });
+                }
+            } else if (countryInfo.plates) {
+                // Case for countries with multiple plate types
+                countryInfo.plates.forEach((plate) => {
+                    content += generateLicensePlateHTML(plate, country);
+                });
+            } else {
+                content += '<div class="license-plate">No image available</div>';
+            }
+
+            content += '</div></div>';
+            return content;
+        }
+
+        function generateLicensePlateHTML(plate, country, state = null) {
+  let html = "";
+  const baseUrl =
+    "https://ocsc00skc0wokcs8kw8g8k84.geohints.com/storage/licensePlates/";
+
+  // Zuerst den Container für die Platten-Gruppe erstellen
+  html += `<div class="license-plate-group">
+    <h4>${plate.type || "Standard Plate"}</h4>`;
+
+  if (plate.front) {
+    const frontAltText = state
+      ? `${country} - ${state} - Front Plate: ${plate.type || "Standard Plate"}`
+      : `${country} - Front Plate: ${plate.type || "Standard Plate"}`;
+
+    html += `
+      <div class="license-plate">
+        <img src="${baseUrl}${plate.front}.jpg" alt="${frontAltText}" onerror="this.parentElement.style.display='none'">
+        <div class="plate-type">Front Plate</div>
+      </div>
+    `;
+  }
+
+  if (plate.back) {
+    const backAltText = state
+      ? `${country} - ${state} - Back Plate: ${plate.type || "Standard Plate"}`
+      : `${country} - Back Plate: ${plate.type || "Standard Plate"}`;
+
+    html += `
+      <div class="license-plate">
+        <img src="${baseUrl}${plate.back}.jpg" alt="${backAltText}" onerror="this.parentElement.style.display='none'">
+        <div class="plate-type">Back Plate</div>
+      </div>
+    `;
+  }
+
+  if (plate.imageUrl) {
+    const altText = state
+      ? `${country} - ${state} - Type: ${plate.type || "Standard Plate"}`
+      : `${country} - Type: ${plate.type || "Standard Plate"}`;
+
+    html += `
+      <div class="license-plate">
+        <img src="${plate.imageUrl}" alt="${altText}" onerror="this.parentElement.style.display='none'">
+        <div class="plate-type">Type: ${plate.type || "Standard Plate"}</div>
+      </div>
+    `;
+  }
+
+  // Den Container für die Platten-Gruppe schließen
+  html += `</div>`;
+
+  return html || `<div class="license-plate">Image not available</div>`;
+}
+
+        // Funktion zum Formatieren des Ländernamens
+        function formatCountryName(country) {
+            return country
+                .replace(/([A-Z])/g, ' $1') // Leerzeichen vor Großbuchstaben
+                .replace(/^./, str => str.toUpperCase()) // Erster Buchstabe groß
+                .trim(); // Überschüssige Leerzeichen entfernen
+        }
+
+        // Benutzerdefinierte Marker-Funktion im Google Maps-Stil
+        function createGoogleStyleMarker(country, latlng, state = null) {
+            const countryInfo = streetViewCountries[country];
+            const color = countryInfo ? countryInfo.color : '#4285F4';
+            const markerHtml = `<div class="google-marker" style="background-color: ${color};"></div>`;
+
+            return L.marker(latlng, {
+                icon: L.divIcon({
+                    html: markerHtml,
+                    className: '',
+                    iconSize: [30, 30],
+                    iconAnchor: [15, 30]
+                })
+            });
+        }
+
+        // Marker-Gruppen für Regionen
+        const markerGroups = {
+            'all': L.layerGroup(),
+            'western-europe': L.layerGroup(),
+            'eastern-europe': L.layerGroup(),
+            'nordics': L.layerGroup(),
+            'baltics': L.layerGroup(),
+            'latin-america': L.layerGroup(),
+            'north-america': L.layerGroup(),
+            'south-southeast-asia': L.layerGroup(),
+            'rest-of-asia': L.layerGroup(),
+            'oceania': L.layerGroup(),
+            'africa': L.layerGroup(),
+            'middle-east': L.layerGroup()
+        };
+
+        // Länder zur Karte hinzufügen
+        Object.keys(streetViewCountries).forEach(country => {
+            const countryInfo = streetViewCountries[country];
+
+            if (countryInfo.states) {
+                // Mehrere Marker für Bundesstaaten erstellen
+                Object.keys(countryInfo.states).forEach(state => {
+                    const stateData = countryInfo.states[state];
+                    if (!stateData.coordinates) return;
+                    const marker = createGoogleStyleMarker(country, stateData.coordinates);
+                    marker.bindPopup(() => {
+                        return displayLicensePlates(country, state);
+                    });
+                    markerGroups['all'].addLayer(marker);
+                    if (countryInfo.region) {
+                        markerGroups[countryInfo.region].addLayer(marker);
+                    }
+                });
+            } else if (countryInfo.coordinates) {
+                // Einzelner Marker für Länder ohne Unterteilung
+                const marker = createGoogleStyleMarker(country, countryInfo.coordinates);
+                marker.bindPopup(() => {
+                    return displayLicensePlates(country);
+                });
+                markerGroups['all'].addLayer(marker);
+                if (countryInfo.region) {
+                    markerGroups[countryInfo.region].addLayer(marker);
+                }
+            }
+        });
+
+
+        // Alle Marker-Gruppen zur Karte hinzufügen
+        markerGroups['all'].addTo(map);
+
+        // Region-Filter-Funktion
+        document.getElementById('region-select').addEventListener('change', function () {
+            const selectedRegion = this.value;
+
+            // Alle Marker-Gruppen entfernen
+            Object.values(markerGroups).forEach(group => {
+                map.removeLayer(group);
+            });
+
+            // Ausgewählte Marker-Gruppe hinzufügen
+            markerGroups[selectedRegion].addTo(map);
+        });
+    </script>
+</body>
+
+</html>
